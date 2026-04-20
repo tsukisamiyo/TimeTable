@@ -1,0 +1,70 @@
+package cz.uhk.timetable.gui;
+
+import cz.uhk.timetable.model.LocationTimetable;
+import cz.uhk.timetable.utils.ITimetableProvider;
+import cz.uhk.timetable.utils.MockTimetableProvider;
+import cz.uhk.timetable.utils.StagTimetableProvider;
+
+import javax.swing.*;
+import javax.swing.table.AbstractTableModel;
+import java.awt.*;
+
+public class TimetableFrame extends JFrame {
+    private ITimetableProvider timetableProvider;
+    private LocationTimetable timetable;
+    private JTable table;
+    private TimetableModel timetableModel;
+
+    public TimetableFrame() {
+        super("Location timetable");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        timetableProvider = new StagTimetableProvider();
+        timetable = timetableProvider.readTimetable("J", "J22");
+        initGui();
+    }
+
+    private void initGui() {
+        timetableModel = new TimetableModel();
+        table = new JTable(timetableModel);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+        setPreferredSize(new Dimension(900, 800));
+        pack();
+    }
+
+    class TimetableModel extends AbstractTableModel {
+
+        private static final String[] COLNAMES = {
+                "ZKRATKA", "NAZEV", "UCITEL", "TYP", "DEN", "ZACATEK", "KONEC"
+        };
+
+        @Override
+        public int getRowCount() {
+            return timetable.getActivities().size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 7;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return COLNAMES[column];
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            var a = timetable.getActivities().get(rowIndex);
+            return switch (columnIndex) {
+                case 0 -> a.getId();
+                case 1 -> a.getName();
+                case 2 -> a.getTeacher();
+                case 3 -> a.getType();
+                case 4 -> a.getDay();
+                case 5 -> a.getStart();
+                case 6 -> a.getEnd();
+                default -> null;
+            };
+        }
+    }
+}

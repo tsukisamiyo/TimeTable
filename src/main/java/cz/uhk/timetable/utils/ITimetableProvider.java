@@ -1,0 +1,18 @@
+package cz.uhk.timetable.utils;
+
+import cz.uhk.timetable.model.LocationTimetable;
+
+/**
+ * Interface of timetable provider classes
+ */
+public interface ITimetableProvider {
+
+    /**
+     * Returns newly read timetable of selected room / location
+     * @param building building id
+     * @param room room id
+     * @return
+     */
+    LocationTimetable readTimetable(String building, String room);
+
+}
