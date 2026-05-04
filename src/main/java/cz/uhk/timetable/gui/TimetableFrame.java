@@ -1,13 +1,16 @@
 package cz.uhk.timetable.gui;
 
 import cz.uhk.timetable.model.LocationTimetable;
+import cz.uhk.timetable.model.RoomData;
 import cz.uhk.timetable.utils.ITimetableProvider;
-import cz.uhk.timetable.utils.MockTimetableProvider;
+import cz.uhk.timetable.utils.StagRoomRequestBuilder;
 import cz.uhk.timetable.utils.StagTimetableProvider;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.util.Comparator;
+import java.util.List;
 
 public class TimetableFrame extends JFrame {
     private ITimetableProvider timetableProvider;
@@ -19,7 +22,6 @@ public class TimetableFrame extends JFrame {
         super("Location timetable");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         timetableProvider = new StagTimetableProvider();
-        timetable = timetableProvider.readTimetable("J", "J22");
         initGui();
     }
 
@@ -27,8 +29,69 @@ public class TimetableFrame extends JFrame {
         timetableModel = new TimetableModel();
         table = new JTable(timetableModel);
         add(new JScrollPane(table), BorderLayout.CENTER);
+        add(getToolBar(), BorderLayout.NORTH);
         setPreferredSize(new Dimension(900, 800));
         pack();
+    }
+
+    private JToolBar getToolBar() {
+        JToolBar toolBar = new JToolBar(SwingConstants.HORIZONTAL);
+
+        JComboBox<String> buildingCombo = new JComboBox<>();
+        JComboBox<String> roomCombo = new JComboBox<>();
+
+        Comparator<String> lettersFirst = (a, b) -> {
+            boolean aLetter = !a.isEmpty() && Character.isLetter(a.charAt(0));
+            boolean bLetter = !b.isEmpty() && Character.isLetter(b.charAt(0));
+            if (aLetter != bLetter) return aLetter ? -1 : 1;
+            return a.compareTo(b);
+        };
+
+        List<RoomData> allRooms = new StagRoomRequestBuilder().execute();
+        List<String> buildings = allRooms.stream()
+                .map(RoomData::getBuildingCode)
+                .filter(b -> b != null && !b.isBlank())
+                .distinct()
+                .sorted(lettersFirst)
+                .toList();
+
+        buildingCombo.addItem("");
+        buildings.forEach(buildingCombo::addItem);
+
+        buildingCombo.addActionListener(e -> {
+            String selected = (String) buildingCombo.getSelectedItem();
+            roomCombo.removeAllItems();
+            if (selected == null || selected.isBlank()) {
+                return;
+            }
+            List<RoomData> rooms = new StagRoomRequestBuilder()
+                    .filterByBuildingCode(selected)
+                    .execute();
+            roomCombo.addItem("");
+            rooms.stream()
+                    .map(RoomData::getRoomCode)
+                    .filter(r -> r != null && !r.isBlank())
+                    .distinct()
+                    .sorted(lettersFirst)
+                    .forEach(roomCombo::addItem);
+        });
+
+        roomCombo.addActionListener(e -> {
+            String building = (String) buildingCombo.getSelectedItem();
+            String room = (String) roomCombo.getSelectedItem();
+            if (building == null || building.isBlank() || room == null || room.isBlank()) {
+                return;
+            }
+            timetable = timetableProvider.readTimetable(building, room);
+            timetableModel.fireTableDataChanged();
+        });
+
+        toolBar.add(new JLabel("Budova: "));
+        toolBar.add(buildingCombo);
+        toolBar.addSeparator();
+        toolBar.add(new JLabel("Mistnost: "));
+        toolBar.add(roomCombo);
+        return toolBar;
     }
 
     class TimetableModel extends AbstractTableModel {
@@ -39,7 +102,7 @@ public class TimetableFrame extends JFrame {
 
         @Override
         public int getRowCount() {
-            return timetable.getActivities().size();
+            return timetable == null ? 0 : timetable.getActivities().size();
         }
 
         @Override
